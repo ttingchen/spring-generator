@@ -2,7 +2,9 @@
 
 A single-page web app that generates 3D helical springs and exports them as **STL** or **OBJ**.
 
-Open `index.html` in a browser (or visit the GitHub Pages site) — no build step, no server.
+**Live site: https://ttingchen.github.io/spring-generator/**
+
+You can also open `index.html` locally in a browser — no build step, no server.
 
 ## Spring types
 

@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Coilwright Spring Generator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: tool-sheet left (parameters, grouped like a spring drawing's spec block), live 3D viewport right with a stats strip under it. */
+:root{
+  --bg:#eaeef2; --panel:#f7f9fb; --ink:#16202b; --muted:#5a6676; --line:#cfd6df;
+  --accent:#2b579c; --accent-ink:#ffffff; --straw:#a87a26; --warn:#b0521b; --view:#dfe5eb; --field:#ffffff;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f141a; --panel:#151c24; --ink:#e3e8ee; --muted:#8e9bac; --line:#26313e;
+  --accent:#7fa6e4; --accent-ink:#0d1620; --straw:#d8a952; --warn:#ef9159; --view:#0b1015; --field:#10161d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f141a; --panel:#151c24; --ink:#e3e8ee; --muted:#8e9bac; --line:#26313e;
+  --accent:#7fa6e4; --accent-ink:#0d1620; --straw:#d8a952; --warn:#ef9159; --view:#0b1015; --field:#10161d; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px;box-sizing:border-box}
+*,*::before,*::after{box-sizing:inherit}
+.app{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;height:100%;min-height:560px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.brand{padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+.brand h1{font-family:var(--f-display);font-weight:600;font-size:28px;letter-spacing:.02em;margin:0;line-height:1;text-wrap:balance}
+.brand p{margin:4px 0 0;color:var(--muted);font-size:12.5px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:12px;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{font:500 13px var(--f-body);padding:8px 4px;border:0;background:transparent;color:var(--ink);cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.scroll{overflow-y:auto;padding:4px 18px 18px;flex:1;min-height:0}
+fieldset{border:0;margin:0;padding:14px 0 4px;border-bottom:1px dashed var(--line);display:grid;gap:10px}
+fieldset:last-child{border-bottom:0}
+legend{font-family:var(--f-display);font-weight:500;font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--straw);padding:0;margin-bottom:6px;float:left;width:100%}
+.row{display:grid;grid-template-columns:1fr 82px;gap:4px 10px;align-items:center}
+.row label{font-size:13px;display:flex;justify-content:space-between;gap:8px}
+.row label .sym{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.row input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--accent);margin:0}
+.row input[type=number],.row select{font:400 13px var(--f-mono);width:100%;padding:4px 6px;border:1px solid var(--line);border-radius:3px;background:var(--field);color:var(--ink);font-variant-numeric:tabular-nums}
+.row.sel{grid-template-columns:1fr 150px}
+.row.sel select{font-family:var(--f-body)}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.swatches button{display:flex;align-items:center;gap:6px;font:400 12px var(--f-body);color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 4px;cursor:pointer}
+.swatches button i{width:16px;height:16px;border-radius:50%;display:block;border:1px solid var(--line)}
+.swatches button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.stage{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:12px;min-height:0;min-width:0}
+.view{position:relative;background:var(--view);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-height:320px}
+.view canvas{display:block;width:100%;height:100%;touch-action:none}
+.tools{position:absolute;top:10px;right:10px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.btn{font:500 13px var(--f-body);padding:7px 12px;border-radius:4px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:hover{filter:brightness(1.06)}
+.btn[disabled]{opacity:.5;cursor:wait}
+.dims{position:absolute;left:12px;bottom:10px;font:400 12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums;pointer-events:none}
+.toast{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:12.5px;padding:6px 12px;border-radius:4px;max-width:80%}
+.stats{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:grid;gap:10px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px 16px}
+.kv div{min-width:0}
+.kv dt{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.kv dd{margin:0;font:500 15px var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kv dd small{font-size:11px;color:var(--muted);font-weight:400}
+.notes{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12px;padding:2px 9px;border-radius:999px;border:1px solid currentColor}
+.chip.warn{color:var(--warn)}
+.chip.ok{color:var(--muted)}
+.foot{font-size:11.5px;color:var(--muted);margin:0}
+@media (max-width:820px){
+  body{height:auto}
+  .app{grid-template-columns:1fr;height:auto}
+  .stage{order:-1;grid-template-rows:auto auto}
+  .view{height:58vh}
+  .panel{overflow:visible}
+  .scroll{overflow:visible}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="panel">
+    <div class="brand">
+      <h1>Coilwright</h1>
+      <p>Parametric helical springs. All dimensions in millimetres.</p>
+      <div class="seg" role="group" aria-label="Spring type" id="typeSeg">
+        <button type="button" data-type="compression" aria-pressed="true">Compression</button>
+        <button type="button" data-type="extension" aria-pressed="false">Extension</button>
+        <button type="button" data-type="torsion" aria-pressed="false">Torsion</button>
+      </div>
+    </div>
+    <div class="scroll" id="form"></div>
+  </aside>
+
+  <section class="stage">
+    <div class="view" id="view">
+      <div class="tools">
+        <button class="btn" id="resetView" type="button">Reset view</button>
+        <button class="btn primary" id="dlStl" type="button">Download STL</button>
+        <button class="btn primary" id="dlObj" type="button">Download OBJ</button>
+      </div>
+      <div class="dims" id="dims"></div>
+      <div class="toast" id="toast" hidden></div>
+    </div>
+    <div class="stats">
+      <dl class="kv" id="kv"></dl>
+      <div class="notes" id="notes"></div>
+      <p class="foot" id="foot">Model is exported Z-up in millimetres, as a watertight swept tube.</p>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+"use strict";
+// ---------- parameters ----------
+const MATERIALS = {
+  music:  {name:"Music wire (ASTM A228)", G:81700, E:207000, rho:7.85},
+  ss302:  {name:"Stainless 302",          G:69000, E:193000, rho:7.92},
+  bronze: {name:"Phosphor bronze",        G:41400, E:103000, rho:8.86},
+  petg:   {name:"PETG (3D printed)",      G:780,   E:2100,   rho:1.27},
+  pla:    {name:"PLA (3D printed)",       G:1300,  E:3500,   rho:1.24}
+};
+const FINISHES = [
+  {id:"bright", name:"Bright", color:0xb9c0c8},
+  {id:"straw",  name:"Straw temper", color:0xc49a4a},
+  {id:"blue",   name:"Blue temper", color:0x3d5f9e},
+  {id:"black",  name:"Black oxide", color:0x2a2d31}
+];
+const P = {
+  type:"compression",
+  d:1.5, od:12, n:6, hand:"right",
+  L:30, ends:"ground", odTop:12,
+  gap:0, hooks:"loop", align:"0",
+  legLen:15, legAng:90, tgap:0.2,
+  sides:20, spt:64, mat:"music", finish:"bright"
+};
+// schema: [key, label, symbol, min, max, step, showFor]
+const GROUPS = [
+  {title:"Wire & body", rows:[
+    ["d","Wire diameter","d",0.2,10,0.05],
+    ["od","Outer diameter","OD",2,200,0.1],
+    ["n","Active coils","Nₐ",1,60,0.25],
+    ["hand","Wind direction","",null,null,null,null,[["right","Right-hand"],["left","Left-hand"]]]
+  ]},
+  {title:"Compression ends", show:"compression", rows:[
+    ["L","Free length","L₀",2,500,0.1],
+    ["ends","End type","",null,null,null,null,[["ground","Closed & ground"],["closed","Closed, not ground"],["open","Open"]]],
+    ["odTop","Top outer diameter (taper)","OD₂",2,200,0.1]
+  ]},
+  {title:"Extension hooks", show:"extension", rows:[
+    ["gap","Coil gap","",0,5,0.05],
+    ["hooks","End hooks","",null,null,null,null,[["loop","Machine loop"],["none","Plain ends"]]],
+    ["align","Hook alignment","",null,null,null,null,[["0","In line (0°)"],["0.25","Crossed (90°)"],["0.5","Opposed (180°)"]]]
+  ]},
+  {title:"Torsion legs", show:"torsion", rows:[
+    ["legLen","Leg length","",0,200,0.5],
+    ["legAng","Leg offset angle","°",0,359,1],
+    ["tgap","Coil gap","",0,5,0.05]
+  ]},
+  {title:"Mesh detail", rows:[
+    ["sides","Sides around wire","",6,64,1],
+    ["spt","Segments per coil","",12,180,1]
+  ]},
+  {title:"Material & finish", rows:[
+    ["mat","Material","",null,null,null,null,Object.entries(MATERIALS).map(([k,v])=>[k,v.name])],
+    ["finish","Finish","swatch"]
+  ]}
+];
+
+// ---------- form ----------
+const form = document.getElementById("form");
+function el(tag, attrs, html){const e=document.createElement(tag); if(attrs) for(const k in attrs) e.setAttribute(k,attrs[k]); if(html!=null) e.innerHTML=html; return e;}
+for(const g of GROUPS){
+  const fs = el("fieldset"); if(g.show) fs.dataset.show=g.show;
+  fs.appendChild(el("legend",null,g.title));
+  for(const r of g.rows){
+    const [key,label,sym,min,max,step,,opts]=r;
+    if(sym==="swatch"){
+      const wrap=el("div",{class:"swatches",role:"group","aria-label":"Finish"});
+      for(const f of FINISHES){
+        const b=el("button",{type:"button","data-finish":f.id,"aria-pressed":String(P.finish===f.id)},`<i style="background:#${f.color.toString(16).padStart(6,"0")}"></i>${f.name}`);
+        b.onclick=()=>{P.finish=f.id; wrap.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); applyFinish();};
+        wrap.appendChild(b);
+      }
+      fs.appendChild(wrap); continue;
+    }
+    if(opts){
+      const row=el("div",{class:"row sel"});
+      const id="f_"+key;
+      row.appendChild(el("label",{for:id},label));
+      const s=el("select",{id});
+      for(const [v,t] of opts){const o=el("option",{value:v},t); if(String(P[key])===v) o.selected=true; s.appendChild(o);}
+      s.onchange=()=>{P[key]=s.value; schedule();};
+      row.appendChild(s); fs.appendChild(row); continue;
+    }
+    const row=el("div",{class:"row"});
+    const id="f_"+key;
+    row.appendChild(el("label",{for:id},`<span>${label}</span><span class="sym">${sym}</span>`));
+    const num=el("input",{type:"number",id,min,max,step,value:P[key],inputmode:"decimal"});
+    const rng=el("input",{type:"range",id:id+"_r",min,max,step,value:P[key],"aria-label":label});
+    num.oninput=()=>{const v=parseFloat(num.value); if(isFinite(v)){P[key]=v; rng.value=v; schedule();}};
+    num.onchange=()=>{let v=parseFloat(num.value); if(!isFinite(v)) v=P[key]; v=Math.min(max,Math.max(min,v)); P[key]=v; num.value=v; rng.value=v; schedule();};
+    rng.oninput=()=>{P[key]=parseFloat(rng.value); num.value=rng.value; schedule();};
+    row.appendChild(num); row.appendChild(rng); fs.appendChild(row);
+  }
+  form.appendChild(fs);
+}
+function syncVisibility(){
+  form.querySelectorAll("fieldset[data-show]").forEach(f=>f.hidden=f.dataset.show!==P.type);
+  document.querySelectorAll("#typeSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.type===P.type)));
+}
+document.querySelectorAll("#typeSeg button").forEach(b=>b.onclick=()=>{P.type=b.dataset.type; syncVisibility(); schedule(true);});
+
+// ---------- geometry ----------
+const TAU=Math.PI*2;
+const clamp01=x=>x<0?0:x>1?1:x;
+const sm=x=>{x=clamp01(x);return x*x*(3-2*x);};
+const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+const mul=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const len=a=>Math.hypot(a[0],a[1],a[2]);
+const norm=a=>{const l=len(a)||1;return [a[0]/l,a[1]/l,a[2]/l];};
+
+function helix(turns, spt, rOf, zOf, hand){
+  const N=Math.max(2,Math.ceil(turns*spt)), pts=[];
+  for(let i=0;i<=N;i++){const t=turns*i/N, th=hand*TAU*t, r=rOf(t,i); pts.push([r*Math.cos(th),r*Math.sin(th),zOf(t,i)]);}
+  return pts;
+}
+function helixTangent(pts, atEnd){
+  return atEnd? norm(sub(pts[pts.length-1],pts[pts.length-2])) : norm(sub(pts[0],pts[1]));
+}
+// Machine loop hook: from end point P0 (heading T0), cross to the axis, then a ~300° loop in the plane through the axis.
+function hook(P0, T0, s, R, d, segs){
+  const u=norm([P0[0],P0[1],0]), z=[0,0,s];
+  const C=[0,0,P0[2]+s*(R+d)], B=sub(C,mul(z,R));
+  const k=R*0.6, P1=add(P0,mul(T0,k)), P2=add(B,mul(u,k));
+  const out=[], nb=Math.max(8,Math.round(segs*0.35));
+  for(let i=1;i<=nb;i++){const t=i/nb,a=(1-t)**3,b=3*(1-t)**2*t,c=3*(1-t)*t*t,e=t**3;
+    out.push([a*P0[0]+b*P1[0]+c*P2[0]+e*B[0],a*P0[1]+b*P1[1]+c*P2[1]+e*B[1],a*P0[2]+b*P1[2]+c*P2[2]+e*B[2]]);}
+  const sweep=300*Math.PI/180, nl=Math.max(12,Math.round(segs*300/360));
+  for(let i=1;i<=nl;i++){const a=-Math.PI/2-sweep*i/nl; out.push(add(C,add(mul(u,R*Math.cos(a)),mul(z,R*Math.sin(a)))));}
+  return out;
+}
+function leg(P0, T0, L, steps){
+  const dir=norm([T0[0],T0[1],0]), out=[];
+  if(L<=0) return out;
+  for(let i=1;i<=steps;i++) out.push(add(P0,mul(dir,L*i/steps)));
+  return out;
+}
+
+function buildPath(){
+  const d=P.d, hand=P.hand==="left"?-1:1, spt=Math.round(P.spt);
+  const R=Math.max(d*0.55,(P.od-d)/2);
+  const info={R, warnings:[], activeTurns:P.n};
+  let pts, clampZ=null;
+  if(P.type==="compression"){
+    const Rt=Math.max(d*0.55,(P.odTop-d)/2);
+    const e=P.ends==="open"?0:1, Nt=P.n+2*e, N=Math.max(2,Math.ceil(Nt*spt));
+    const s=t=> e===0?1: sm((t-(e-0.25))/0.5)*sm(((Nt-e+0.25)-t)/0.5);
+    const S=[0]; for(let i=1;i<=N;i++){const t0=Nt*(i-1)/N,t1=Nt*i/N; S.push(S[i-1]+(s(t0)+s(t1))/2*(t1-t0));}
+    const ground=P.ends==="ground";
+    const span= ground? P.L : P.L-d, z0= ground? 0 : d/2;
+    let p=d+(span-d*Nt)/Math.max(1e-6,S[N]);
+    if(p<d){info.warnings.push(`Coil bound: free length is below solid height (${((ground?Nt:Nt+1)*d).toFixed(1)} mm).`); p=d;}
+    info.pitch=p; info.totalTurns=Nt;
+    info.solid=(ground? Nt : Nt+1)*d;
+    pts=helix(Nt,spt,t=>R+(Rt-R)*(t/Nt),(t,i)=>z0+d*t+(p-d)*S[i],hand);
+    if(ground) clampZ=[0,P.L];
+    if(P.L/(2*R)>4) info.warnings.push("Slender: free length over 4× mean diameter may buckle without a guide.");
+  } else if(P.type==="extension"){
+    const Nb=P.n+parseFloat(P.align), pitch=d+P.gap;
+    info.pitch=pitch; info.totalTurns=Nb;
+    pts=helix(Nb,spt,()=>R,t=>t*pitch,hand);
+    if(P.hooks==="loop"){
+      const top=hook(pts[pts.length-1],helixTangent(pts,true),1,R,d,spt);
+      const bot=hook(pts[0],helixTangent(pts,false),-1,R,d,spt).reverse();
+      pts=bot.concat(pts,top);
+    }
+    if(P.gap===0) info.warnings.push("Close-wound coils touch. Add a small coil gap for 3D printing.");
+  } else {
+    const Nb=P.n+P.legAng/360, pitch=d+P.tgap;
+    info.pitch=pitch; info.totalTurns=Nb;
+    pts=helix(Nb,spt,()=>R,t=>t*pitch,hand);
+    const steps=Math.max(2,Math.round(P.legLen/(d*2)));
+    const top=leg(pts[pts.length-1],helixTangent(pts,true),P.legLen,steps);
+    const bot=leg(pts[0],helixTangent(pts,false),P.legLen,steps).reverse();
+    pts=bot.concat(pts,top);
+    if(P.tgap===0) info.warnings.push("Close-wound coils touch. Add a small coil gap for 3D printing.");
+  }
+  const C=2*R/d; info.C=C;
+  if(C<4) info.warnings.push(`Spring index ${C.toFixed(1)} is below 4: hard to coil, high stress.`);
+  if(C>16) info.warnings.push(`Spring index ${C.toFixed(1)} is above 16: prone to tangling.`);
+  return {pts, clampZ, info};
+}
+
+// Sweep a circular section along the path with parallel-transport frames. Closed with end caps.
+function sweep(pts, r, sides){
+  const n=pts.length, T=new Array(n);
+  for(let i=0;i<n;i++){const a=pts[Math.max(0,i-1)], b=pts[Math.min(n-1,i+1)]; T[i]=norm(sub(b,a));}
+  let ref=Math.abs(T[0][2])<0.9?[0,0,1]:[1,0,0];
+  let N=norm(cross(cross(T[0],ref),T[0]));
+  const ringCount=n*sides, total=ringCount+2*(sides+1);
+  const pos=new Float32Array(total*3); let v=0;
+  const rings=[];
+  for(let i=0;i<n;i++){
+    if(i>0){N=sub(N,mul(T[i],dot(N,T[i]))); N=norm(N);}
+    const B=cross(T[i],N); rings.push([N,B]);
+    for(let j=0;j<sides;j++){const a=TAU*j/sides,c=Math.cos(a)*r,s=Math.sin(a)*r;
+      pos[v++]=pts[i][0]+N[0]*c+B[0]*s; pos[v++]=pts[i][1]+N[1]*c+B[1]*s; pos[v++]=pts[i][2]+N[2]*c+B[2]*s;}
+  }
+  const idx=[];
+  for(let i=0;i<n-1;i++) for(let j=0;j<sides;j++){
+    const a=i*sides+j,b=i*sides+(j+1)%sides,c=(i+1)*sides+j,dd=(i+1)*sides+(j+1)%sides;
+    idx.push(a,c,b, b,c,dd);
+  }
+  // caps (duplicated ring vertices for crisp shading)
+  function cap(i, flip){
+    const base=v/3; pos[v++]=pts[i][0]; pos[v++]=pts[i][1]; pos[v++]=pts[i][2];
+    for(let j=0;j<sides;j++){const k=(i*sides+j)*3; pos[v++]=pos[k]; pos[v++]=pos[k+1]; pos[v++]=pos[k+2];}
+    for(let j=0;j<sides;j++){const a=base+1+j,b=base+1+(j+1)%sides; flip? idx.push(base,a,b):idx.push(base,b,a);}
+  }
+  cap(0,false); cap(n-1,true);
+  return {pos, idx:new Uint32Array(idx)};
+}
+
+// ---------- three.js ----------
+const view=document.getElementById("view");
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:false});
+renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+renderer.setClearColor(0x000000,0);
+view.insertBefore(renderer.domElement,view.firstChild);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(35,1,0.1,5000);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.dampingFactor=0.12;
+scene.add(new THREE.HemisphereLight(0xffffff,0x40464f,0.75));
+const key=new THREE.DirectionalLight(0xffffff,0.9); key.position.set(3,5,4); scene.add(key);
+const rim=new THREE.DirectionalLight(0xbfd2ff,0.5); rim.position.set(-4,2,-3); scene.add(rim);
+const mat=new THREE.MeshStandardMaterial({color:0xb9c0c8,metalness:0.55,roughness:0.33});
+const holder=new THREE.Group(); holder.rotation.x=-Math.PI/2; scene.add(holder); // Z-up model shown Y-up
+let mesh=null, grid=null, current=null;
+
+function cssVar(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+function applyFinish(){const f=FINISHES.find(x=>x.id===P.finish); mat.color.setHex(f.color); mat.metalness=P.finish==="black"?0.3:0.55;}
+function makeGrid(size){
+  if(grid){scene.remove(grid); grid.geometry.dispose(); grid.material.dispose();}
+  const step=size>120?10:size>30?5:1, divs=Math.max(4,Math.ceil(size/step));
+  grid=new THREE.GridHelper(divs*step,divs,new THREE.Color(cssVar("--muted")||"#888"),new THREE.Color(cssVar("--line")||"#ccc"));
+  grid.material.transparent=true; grid.material.opacity=0.6; scene.add(grid);
+}
+function fitCamera(){
+  if(!mesh) return;
+  const box=new THREE.Box3().setFromObject(holder), c=box.getCenter(new THREE.Vector3()), s=box.getSize(new THREE.Vector3());
+  const r=Math.max(s.x,s.y,s.z)*0.5+1e-3, dist=r/Math.sin(THREE.MathUtils.degToRad(camera.fov/2))*1.05;
+  controls.target.copy(c);
+  camera.position.copy(c).add(new THREE.Vector3(0.9,0.55,1).normalize().multiplyScalar(dist));
+  camera.near=dist/100; camera.far=dist*20; camera.updateProjectionMatrix(); controls.update();
+}
+
+function rebuild(refit){
+  const {pts,clampZ,info}=buildPath();
+  const sides=Math.round(P.sides);
+  const {pos,idx}=sweep(pts,P.d/2,sides);
+  if(clampZ){for(let i=2;i<pos.length;i+=3){if(pos[i]<clampZ[0])pos[i]=clampZ[0]; else if(pos[i]>clampZ[1])pos[i]=clampZ[1];}}
+  let minZ=Infinity,maxZ=-Infinity,maxR=0;
+  for(let i=0;i<pos.length;i+=3){const z=pos[i+2]; if(z<minZ)minZ=z; if(z>maxZ)maxZ=z; const rr=Math.hypot(pos[i],pos[i+1]); if(rr>maxR)maxR=rr;}
+  for(let i=2;i<pos.length;i+=3) pos[i]-=minZ;
+  let wire=0; for(let i=1;i<pts.length;i++) wire+=len(sub(pts[i],pts[i-1]));
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  geo.setIndex(new THREE.BufferAttribute(idx,1));
+  geo.computeVertexNormals();
+  if(mesh){holder.remove(mesh); mesh.geometry.dispose();}
+  mesh=new THREE.Mesh(geo,mat); holder.add(mesh);
+  const height=maxZ-minZ;
+  current={pos,idx,info,wire,height,width:2*maxR};
+  makeGrid(Math.max(2*maxR,height)*1.6);
+  if(refit) fitCamera();
+  report();
+}
+
+function fmt(x,dp){return Number.isFinite(x)? x.toFixed(dp):"–";}
+function report(){
+  const {info,wire,height,width,idx}=current, m=MATERIALS[P.mat], d=P.d, D=2*info.R, n=P.n;
+  const mass=Math.PI*d*d/4*wire*m.rho/1000;
+  const items=[];
+  if(P.type==="torsion"){
+    const kTurn=m.E*d**4/(10.8*D*(n+P.legAng/360));
+    items.push(["Rate",`${fmt(kTurn/360,kTurn/360<1?3:2)} <small>N·mm/°</small>`]);
+  } else {
+    const k=m.G*d**4/(8*D**3*n);
+    items.push(["Rate",`${fmt(k,k<1?3:2)} <small>N/mm</small>`]);
+  }
+  items.push(["Spring index",`${fmt(info.C,2)} <small>D/d</small>`]);
+  items.push(["Pitch",`${fmt(info.pitch,2)} <small>mm</small>`]);
+  if(P.type==="compression") items.push(["Solid height",`${fmt(info.solid,2)} <small>mm</small>`]);
+  items.push(["Wire length",`${fmt(wire,1)} <small>mm</small>`]);
+  items.push(["Mass",`${fmt(mass,mass<1?3:2)} <small>g</small>`]);
+  items.push(["Triangles",`${(idx.length/3).toLocaleString()}`]);
+  document.getElementById("kv").innerHTML=items.map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+  const notes=document.getElementById("notes");
+  notes.innerHTML="";
+  if(!info.warnings.length){const c=el("span",{class:"chip ok"}); c.textContent="No design warnings"; notes.appendChild(c);}
+  for(const w of info.warnings){const c=el("span",{class:"chip warn"}); c.textContent=w; notes.appendChild(c);}
+  document.getElementById("dims").textContent=`H ${fmt(height,2)} × Ø ${fmt(width,2)} mm · ${m.name}`;
+}
+
+let pending=false, pendingFit=false;
+function schedule(fit){pendingFit=pendingFit||!!fit; if(pending) return; pending=true; requestAnimationFrame(()=>{pending=false; rebuild(pendingFit); pendingFit=false;});}
+
+function resize(){
+  const w=view.clientWidth,h=view.clientHeight; if(!w||!h) return;
+  renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view);
+(function loop(){controls.update(); renderer.render(scene,camera); requestAnimationFrame(loop);})();
+try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>current&&makeGrid((grid&&grid.geometry.boundingSphere?0:0)||Math.max(current.width,current.height)*1.6));}catch(e){}
+new MutationObserver(()=>current&&makeGrid(Math.max(current.width,current.height)*1.6)).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+document.getElementById("resetView").onclick=fitCamera;
+
+// ---------- export ----------
+function toSTL(){
+  const {pos,idx}=current, nt=idx.length/3, buf=new ArrayBuffer(84+nt*50), dv=new DataView(buf);
+  const head="Coilwright spring "+P.type+" (mm, Z-up)"; for(let i=0;i<80;i++) dv.setUint8(i,i<head.length?head.charCodeAt(i):32);
+  dv.setUint32(80,nt,true); let o=84;
+  for(let t=0;t<nt;t++){
+    const a=idx[t*3]*3,b=idx[t*3+1]*3,c=idx[t*3+2]*3;
+    const A=[pos[a],pos[a+1],pos[a+2]],B=[pos[b],pos[b+1],pos[b+2]],C=[pos[c],pos[c+1],pos[c+2]];
+    const nrm=norm(cross(sub(B,A),sub(C,A)));
+    for(const v of [nrm,A,B,C]){dv.setFloat32(o,v[0],true);dv.setFloat32(o+4,v[1],true);dv.setFloat32(o+8,v[2],true);o+=12;}
+    dv.setUint16(o,0,true); o+=2;
+  }
+  return new Uint8Array(buf);
+}
+function toOBJ(){
+  const {pos,idx}=current, out=[`# Coilwright ${P.type} spring — units: mm, Z-up`,`# d=${P.d} OD=${P.od} Na=${P.n}`,"o spring"];
+  for(let i=0;i<pos.length;i+=3) out.push(`v ${pos[i].toFixed(4)} ${pos[i+1].toFixed(4)} ${pos[i+2].toFixed(4)}`);
+  for(let i=0;i<idx.length;i+=3) out.push(`f ${idx[i]+1} ${idx[i+1]+1} ${idx[i+2]+1}`);
+  return new TextEncoder().encode(out.join("\n")+"\n");
+}
+// Minimal store-only ZIP (the in-Claude save dialog accepts .zip but not .stl/.obj)
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(u8){let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=CRC[(c^u8[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function zip(name,data){
+  const nm=new TextEncoder().encode(name), crc=crc32(data), sz=data.length;
+  const lh=new DataView(new ArrayBuffer(30)); lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(10,0,true); lh.setUint16(12,0x21,true);
+  lh.setUint32(14,crc,true); lh.setUint32(18,sz,true); lh.setUint32(22,sz,true); lh.setUint16(26,nm.length,true);
+  const ch=new DataView(new ArrayBuffer(46)); ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(14,0x21,true);
+  ch.setUint32(16,crc,true); ch.setUint32(20,sz,true); ch.setUint32(24,sz,true); ch.setUint16(28,nm.length,true); ch.setUint32(42,0,true);
+  const cdOff=30+nm.length+sz;
+  const end=new DataView(new ArrayBuffer(22)); end.setUint32(0,0x06054b50,true); end.setUint16(8,1,true); end.setUint16(10,1,true);
+  end.setUint32(12,46+nm.length,true); end.setUint32(16,cdOff,true);
+  return new Blob([lh.buffer,nm,data,ch.buffer,nm,end.buffer],{type:"application/zip"});
+}
+const toast=document.getElementById("toast"); let toastT;
+function say(msg){toast.textContent=msg; toast.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>toast.hidden=true,3200);}
+let dlP=null;
+function getDownloads(){
+  if(!dlP) dlP=(window.claude&&typeof window.claude.use==="function")? window.claude.use("downloads").catch(()=>null) : Promise.resolve(null);
+  return dlP;
+}
+function fileBase(){return `spring_${P.type}_d${P.d}_OD${P.od}_n${P.n}`.replace(/\./g,"p");}
+async function deliver(ext, btn){
+  const name=fileBase()+"."+ext, data= ext==="stl"? toSTL() : toOBJ();
+  btn.disabled=true;
+  try{
+    const dl=await getDownloads();
+    if(dl){
+      try{ await dl.save({filename:fileBase()+"_"+ext+".zip", data:zip(name,data)}); say(`Saved ${name} (inside a .zip)`); }
+      catch(e){ const c=e&&e.code; say(c==="declined"?"Save cancelled.":c==="rate_limited"?"A save prompt is already open.":"Saving isn't available in this view."); }
+    } else {
+      const url=URL.createObjectURL(new Blob([data],{type: ext==="stl"?"model/stl":"text/plain"}));
+      const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),4000); say(`Downloading ${name}`);
+    }
+  } finally { btn.disabled=false; }
+}
+getDownloads().then(dl=>{ if(dl) document.getElementById("foot").textContent="Model is exported Z-up in millimetres, as a watertight swept tube. Files save inside a .zip here."; });
+document.getElementById("dlStl").onclick=e=>deliver("stl",e.currentTarget);
+document.getElementById("dlObj").onclick=e=>deliver("obj",e.currentTarget);
+
+syncVisibility(); applyFinish(); resize(); rebuild(true);
+})();
+</script>
+</body>
+</html>

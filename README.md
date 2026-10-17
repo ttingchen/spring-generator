@@ -6,6 +6,12 @@ A single-page web app that generates 3D helical springs and exports them as **ST
 
 You can also open `index.html` locally in a browser — no build step, no server.
 
+![Coilwright app with a compression spring](docs/screenshot-app.png)
+
+| Extension spring | Torsion spring |
+| --- | --- |
+| ![Extension spring with machine-loop hooks](docs/extension-spring.png) | ![Torsion spring with straight legs](docs/torsion-spring.png) |
+
 ## Spring types
 
 - **Compression** — free length, end type (closed & ground, closed, open), optional taper (conical)
